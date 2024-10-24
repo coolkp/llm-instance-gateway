@@ -15,7 +15,8 @@ import (
 )
 
 const (
-	ActiveLoRAAdaptersMetricName        = "vllm:info_active_adapters_info"
+	ActiveLoRAAdaptersMetricName        = "vllm:lora_requests_info"
+	LoraLabelNameSubstr                 = "lora_adapters"
 	LoRAAdapterPendingRequestMetricName = "vllm:active_lora_adapters"
 	// TODO: Replace these with the num_tokens_running/waiting below once we add those to the fork.
 	RunningQueueSizeMetricName = "vllm:num_requests_running"
@@ -92,7 +93,7 @@ func promToPodMetrics(metricFamilies map[string]*dto.MetricFamily, existing *bac
 		updated.CachedModels = make(map[string]int)
 		for _, metric := range mf.GetMetric() {
 			for _, label := range metric.GetLabel() {
-				if label.GetName() == "active_adapters" {
+				if strings.Contains(label.GetName(), LoraLabelNameSubstr) {
 					if label.GetValue() != "" {
 						adapterList := strings.Split(label.GetValue(), ",")
 						for _, adapter := range adapterList {
@@ -103,7 +104,6 @@ func promToPodMetrics(metricFamilies map[string]*dto.MetricFamily, existing *bac
 			}
 		}
 	} else {
-		klog.Warningf("metric family %q not found", ActiveLoRAAdaptersMetricName)
 		multierr.Append(errs, fmt.Errorf("metric family %q not found", ActiveLoRAAdaptersMetricName))
 	}
 
