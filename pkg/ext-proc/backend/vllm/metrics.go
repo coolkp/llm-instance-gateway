@@ -16,7 +16,7 @@ import (
 
 const (
 	ActiveLoRAAdaptersMetricName        = "vllm:lora_requests_info"
-	LoraLabelNameSubstr                 = "lora_adapters"
+	LoraLabelName                       = "running_lora_adapters"
 	LoRAAdapterPendingRequestMetricName = "vllm:active_lora_adapters"
 	// TODO: Replace these with the num_tokens_running/waiting below once we add those to the fork.
 	RunningQueueSizeMetricName = "vllm:num_requests_running"
@@ -78,6 +78,23 @@ func promToPodMetrics(metricFamilies map[string]*dto.MetricFamily, existing *bac
 	if err == nil {
 		updated.KVCacheUsagePercent = cachePercent.GetGauge().GetValue()
 	}
+	// Update active loras
+	loraAdapters, _, err := getLatestMetric(metricFamilies, ActiveLoRAAdaptersMetricName)
+	multierr.Append(errs, err)
+	// IMPORTANT: replace the map entries instead of appending to it.
+	updated.CachedModels = make(map[string]int)
+	for _, label := range loraAdapters.GetLabel() {
+		if strings.Contains(label.GetName(), LoraLabelName) {
+			if label.GetValue() != "" {
+				adapterList := strings.Split(label.GetValue(), ",")
+				for _, adapter := range adapterList {
+					updated.CachedModels[adapter] = 0
+				}
+			} else {
+				clear(updated.CachedModels)
+			}
+		}
+	}
 	/* TODO: uncomment once this is available in vllm.
 	kvCap, _, err := getGaugeLatestValue(metricFamilies, KvCacheMaxTokenCapacityMetricName)
 	multierr.Append(errs, err)
@@ -85,28 +102,6 @@ func promToPodMetrics(metricFamilies map[string]*dto.MetricFamily, existing *bac
 		updated.KvCacheMaxTokenCapacity = int(kvCap)
 	}
 	*/
-
-	// Update active loras
-	mf, ok := metricFamilies[ActiveLoRAAdaptersMetricName]
-	if ok {
-		// IMPORTANT: replace the map entries instead of appending to it.
-		updated.CachedModels = make(map[string]int)
-		for _, metric := range mf.GetMetric() {
-			for _, label := range metric.GetLabel() {
-				if strings.Contains(label.GetName(), LoraLabelNameSubstr) {
-					if label.GetValue() != "" {
-						adapterList := strings.Split(label.GetValue(), ",")
-						for _, adapter := range adapterList {
-							updated.CachedModels[adapter] = 0
-						}
-					}
-				}
-			}
-		}
-	} else {
-		multierr.Append(errs, fmt.Errorf("metric family %q not found", ActiveLoRAAdaptersMetricName))
-	}
-
 	return updated, errs
 }
 
