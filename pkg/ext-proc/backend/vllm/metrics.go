@@ -79,7 +79,7 @@ func promToPodMetrics(metricFamilies map[string]*dto.MetricFamily, existing *bac
 		updated.KVCacheUsagePercent = cachePercent.GetGauge().GetValue()
 	}
 	// Update active loras
-	loraAdapters, _, err := getLatestMetric(metricFamilies, ActiveLoRAAdaptersMetricName)
+	loraAdapters, _, err := getLatestLoraInfoMetric(metricFamilies, ActiveLoRAAdaptersMetricName)
 	multierr.Append(errs, err)
 	// IMPORTANT: replace the map entries instead of appending to it.
 	updated.CachedModels = make(map[string]int)
@@ -91,6 +91,7 @@ func promToPodMetrics(metricFamilies map[string]*dto.MetricFamily, existing *bac
 					updated.CachedModels[adapter] = 0
 				}
 			} else {
+				klog.Warning("EMPTY VALUE FOR LORA INFO")
 				clear(updated.CachedModels)
 			}
 		}
@@ -103,6 +104,28 @@ func promToPodMetrics(metricFamilies map[string]*dto.MetricFamily, existing *bac
 	}
 	*/
 	return updated, errs
+}
+
+func getLatestLoraInfoMetric(metricFamilies map[string]*dto.MetricFamily, metricName string) (*dto.Metric, time.Time, error) {
+	mf, ok := metricFamilies[metricName]
+	if !ok {
+		klog.Warningf("metric family %q not found", metricName)
+		return nil, time.Time{}, fmt.Errorf("metric family %q not found", metricName)
+	}
+	if len(mf.GetMetric()) == 0 {
+		return nil, time.Time{}, fmt.Errorf("no metrics available for %q", metricName)
+	}
+	var latestTs float64
+	var latest *dto.Metric
+	for _, m := range mf.GetMetric() {
+		t := m.GetGauge().GetValue()
+		if t >= latestTs {
+			latestTs = t
+			latest = m
+		}
+	}
+	klog.V(4).Infof("Got metric value %+v for metric %v", latest, metricName)
+	return latest, time.Unix(0, int64(latestTs*1000)), nil
 }
 
 // getLatestMetric gets the latest metric of a family. This should be used to get the latest Gauge metric.
