@@ -79,7 +79,7 @@ func promToPodMetrics(metricFamilies map[string]*dto.MetricFamily, existing *bac
 		updated.KVCacheUsagePercent = cachePercent.GetGauge().GetValue()
 	}
 
-	loraMetrics, _ , err := getLatestLoraMetric(metricFamilies[LoraRequestInfoMetricName])
+	loraMetrics, _, err := getLatestLoraMetric(metricFamilies[LoraRequestInfoMetricName])
 	multierr.Append(errs, err)
 	/* TODO: uncomment once this is available in vllm.
 	kvCap, _, err := getGaugeLatestValue(metricFamilies, KvCacheMaxTokenCapacityMetricName)
@@ -113,7 +113,7 @@ func promToPodMetrics(metricFamilies map[string]*dto.MetricFamily, existing *bac
 
 	if loraMetrics != nil {
 		updated.CachedModels = make(map[string]int)
-		for _, label := range loraMetrics.GetLabel(){
+		for _, label := range loraMetrics.GetLabel() {
 			if label.GetName() == "running_lora_adapters" {
 				if label.GetValue() != "" {
 					adapterList := strings.Split(label.GetValue(), ",")
