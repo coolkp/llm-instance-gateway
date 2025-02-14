@@ -19,7 +19,7 @@ Rest of the steps are same as [general setup](https://github.com/kubernetes-sigs
 
 ### Safely rollout v2 adapter
     
-1. Update lora configmap
+1. Update lora configmap `kubectl edit dynamic-lora-config`
 
 ``` yaml
 
@@ -56,8 +56,7 @@ model:
     targetModelName: tweet-summary-1
             weight: 40
     targetModelName: tweet-summary-2
-            weight: 40
-    
+            weight: 40   
 ```
             
 3. Finish rollout by setting the traffic to the new version 100%.
@@ -69,7 +68,7 @@ model:
             weight: 100
 ```
     
-4. Remove v1 from dynamic lora configmap.
+4. Remove v1 from dynamic lora configmap. `kubectl edit dynamic-lora-config`
 ```yaml
     apiVersion: v1
     kind: ConfigMap
